@@ -1,4 +1,4 @@
-package com.funnyspiritguessparty
+package com.funny.spirit.guess.party
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
