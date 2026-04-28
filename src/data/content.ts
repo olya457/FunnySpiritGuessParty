@@ -17,7 +17,7 @@ export const onboardingPages: OnboardingPage[] = [
     badgeColor: '#ff7a13',
     title: 'Play With\nYour Friends!',
     description:
-      'Gather your crew and take turns guessing wild supernatural situations. Who has the funniest spirit sense? Time to find out!',
+      'Gather your crew andfh take turns guessing wild supernatural situations. Who has the funniest spirit sense? Time to find out!',
     image: images.onboardingMasks,
   },
   {
