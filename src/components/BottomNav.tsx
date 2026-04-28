@@ -5,10 +5,10 @@ import {TabKey} from '../types';
 
 const tabs: Array<{key: TabKey; label: string; icon: string}> = [
   {key: 'stories', label: 'Stories', icon: '📖'},
-  {key: 'friends', label: 'Friends', icon: '👥'},
+  {key: 'friends', label: 'Theatre', icon: '🎭'},
   {key: 'quiz', label: 'Quiz', icon: '❔'},
-  {key: 'ghost', label: 'Ghost', icon: '👻'},
-  {key: 'pairs', label: 'Pairs', icon: '🃏'},
+  {key: 'games', label: 'Games', icon: '🎮'},
+  {key: 'stats', label: 'Stats', icon: '📊'},
 ];
 
 type BottomNavProps = {

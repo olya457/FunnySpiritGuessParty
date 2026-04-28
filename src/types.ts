@@ -1,11 +1,12 @@
 import {ImageSourcePropType} from 'react-native';
 
-export type TabKey = 'stories' | 'friends' | 'quiz' | 'ghost' | 'pairs';
+export type TabKey = 'stories' | 'friends' | 'quiz' | 'games' | 'stats';
 
 export type StoredState = {
   onboardingDone: boolean;
   likedStoryIds: string[];
   quizBestScore: number;
+  quizLevel: number;
   ghostBestScore: number;
   partyBestScore: number;
   pairsBestScore: number;
@@ -35,6 +36,35 @@ export type PartySituation = {
   answer: string;
 };
 
+export type TheaterRole = {
+  id: string;
+  emoji: string;
+  name: string;
+  troupe: string;
+  intro: string;
+  voice: string;
+  movement: string;
+  signatureLine: string;
+  secretGoal: string;
+};
+
+export type TheaterScene = {
+  id: string;
+  actTitle: string;
+  scene: string;
+  prop: string;
+  direction: string;
+  twist: string;
+  challenge: string;
+  applauseCue: string;
+};
+
+export type PartyResultRole = {
+  player: number;
+  roleName: string;
+  roleEmoji: string;
+};
+
 export type Joke = {
   setup: string;
   punchline: string;
@@ -54,9 +84,10 @@ export type Route =
   | {name: 'storyDetail'; storyId: string}
   | {name: 'partyHowTo'}
   | {name: 'partySetup'}
-  | {name: 'partyRound'; players: number}
-  | {name: 'partyResults'; scores: number[]}
-  | {name: 'quizPlay'}
-  | {name: 'quizResults'; score: number; total: number}
+  | {name: 'partyRound'; players: number; acts: number}
+  | {name: 'partyResults'; scores: number[]; cast: PartyResultRole[]}
+  | {name: 'quizPlay'; level: number}
+  | {name: 'quizResults'; score: number; total: number; level: number; passed: boolean; nextLevel: number}
   | {name: 'ghostPlay'}
-  | {name: 'ghostResults'; score: number; rounds: number; bestCombo: number};
+  | {name: 'ghostResults'; score: number; rounds: number; bestCombo: number}
+  | {name: 'pairsPlay'};

@@ -4,47 +4,56 @@ import {AppButton} from '../components/AppButton';
 import {StatCard} from '../components/Cards';
 import {HeaderBar} from '../components/HeaderBar';
 import {Screen} from '../components/Screen';
-import {jokes, quizQuestions} from '../data/content';
+import {jokes, quizLevels} from '../data/content';
 import {colors} from '../styles/theme';
 import {QuizQuestion} from '../types';
 
+const quizLevelsCount = quizLevels.length;
+const questionsPerLevel = quizLevels[0]?.length ?? 5;
+const passingScore = 4;
+
 type QuizHomeScreenProps = {
   bestScore: number;
+  currentLevel: number;
   onStart: () => void;
 };
 
-export function QuizHomeScreen({bestScore, onStart}: QuizHomeScreenProps): React.JSX.Element {
+export function QuizHomeScreen({bestScore, currentLevel, onStart}: QuizHomeScreenProps): React.JSX.Element {
+  const level = clampLevel(currentLevel);
+
   return (
     <Screen scroll withNav>
-      <HeaderBar title="Spirit Quiz" subtitle="3 questions · unlock a ghost joke" emoji="🎯" />
+      <HeaderBar title="Spirit Quiz" subtitle="5 questions · 4 correct to pass" emoji="🎯" />
       <View style={styles.heroCard}>
         <Text style={styles.heroEmoji}>🎯</Text>
-        <Text style={styles.heroTitle}>Ghostly Trivia</Text>
+        <Text style={styles.heroTitle}>Level {level}</Text>
         <Text style={styles.heroText}>
-          Answer 3 funny paranormal questions and unlock an exclusive ghost joke!
+          Answer a short paranormal quiz. Score 4 or 5 to move forward.
         </Text>
-        <AppButton label="Start Quiz ✨" onPress={onStart} tone="dark" style={styles.heroButton} />
+        <AppButton label={`Start Level ${level}`} onPress={onStart} tone="dark" style={styles.heroButton} />
       </View>
       <View style={styles.statsRow}>
-        <StatCard icon="❓" value="3" label="Questions" tone="red" />
-        <StatCard icon="😂" value="1" label="Joke unlock" tone="orange" />
-        <StatCard icon="⚡" value="~2" label="Minutes" tone="teal" />
+        <StatCard icon="🧩" value={`Level ${level}`} label="Saved stage" tone="teal" />
+        <StatCard icon="❓" value="5" label="Questions" tone="red" />
+        <StatCard icon="✅" value="4+" label="To pass" tone="orange" />
       </View>
       <View style={styles.bestCard}>
-        <Text style={styles.bestTitle}>🏅 Best Result</Text>
-        <Text style={styles.bestScore}>{bestScore} / 3</Text>
+        <Text style={styles.bestTitle}>Best Level Result</Text>
+        <Text style={styles.bestScore}>{bestScore} / {questionsPerLevel}</Text>
       </View>
     </Screen>
   );
 }
 
 type QuizPlayScreenProps = {
+  level: number;
   onBack: () => void;
-  onFinish: (score: number, total: number) => void;
+  onFinish: (score: number, total: number, level: number) => void;
 };
 
-export function QuizPlayScreen({onBack, onFinish}: QuizPlayScreenProps): React.JSX.Element {
-  const questions = useMemo(() => quizQuestions.slice(0, 3), []);
+export function QuizPlayScreen({level, onBack, onFinish}: QuizPlayScreenProps): React.JSX.Element {
+  const safeLevel = clampLevel(level);
+  const questions = useMemo(() => getLevelQuestions(safeLevel), [safeLevel]);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -52,22 +61,22 @@ export function QuizPlayScreen({onBack, onFinish}: QuizPlayScreenProps): React.J
   const question = questions[index];
   const correct = selected === question.correctIndex;
   const total = questions.length;
+  const visibleScore = score + (confirmed && correct ? 1 : 0);
 
   function confirm(): void {
     if (selected === null || confirmed) {
       return;
     }
-    if (selected === question.correctIndex) {
-      setScore(value => value + 1);
-    }
     setConfirmed(true);
   }
 
   function next(): void {
+    const nextScore = correct ? score + 1 : score;
     if (index >= total - 1) {
-      onFinish(score, total);
+      onFinish(nextScore, total, safeLevel);
       return;
     }
+    setScore(nextScore);
     setIndex(value => value + 1);
     setSelected(null);
     setConfirmed(false);
@@ -75,15 +84,23 @@ export function QuizPlayScreen({onBack, onFinish}: QuizPlayScreenProps): React.J
 
   return (
     <Screen scroll>
-      <HeaderBar title="" onBack={onBack} right={<Text style={styles.counter}>{index + 1} / {total}</Text>} />
+      <HeaderBar
+        title={`Level ${safeLevel}`}
+        onBack={onBack}
+        right={<Text style={styles.counter}>{index + 1} / {total}</Text>}
+      />
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, {width: `${((index + 1) / total) * 100}%`}]} />
+      </View>
+      <View style={styles.scoreLine}>
+        <Text style={styles.scoreLineText}>Score {visibleScore} / {questionsPerLevel}</Text>
+        <Text style={styles.scoreLineText}>Pass {passingScore}+</Text>
       </View>
       <QuestionCard question={question} selected={selected} confirmed={confirmed} onSelect={setSelected} />
       {confirmed ? (
         <View style={[styles.explanation, correct ? styles.explanationCorrect : styles.explanationWrong]}>
           <Text style={styles.explanationText}>
-            {correct ? '✅ ' : '❌ '}
+            {correct ? 'Correct. ' : 'Not this time. '}
             {question.explanation}
           </Text>
         </View>
@@ -91,12 +108,12 @@ export function QuizPlayScreen({onBack, onFinish}: QuizPlayScreenProps): React.J
       <View style={styles.footer}>
         {confirmed ? (
           <AppButton
-            label={index >= total - 1 ? '🎉 Unlocking joke...' : '➡ Next question...'}
+            label={index >= total - 1 ? 'Finish Level' : 'Next Question'}
             onPress={next}
             tone={index >= total - 1 ? 'purple' : 'dark'}
           />
         ) : (
-          <AppButton label="Confirm Answer ✓" onPress={confirm} tone="green" disabled={selected === null} />
+          <AppButton label="Confirm Answer" onPress={confirm} tone="green" disabled={selected === null} />
         )}
       </View>
     </Screen>
@@ -148,38 +165,74 @@ function QuestionCard({question, selected, confirmed, onSelect}: QuestionCardPro
 type QuizResultsScreenProps = {
   score: number;
   total: number;
+  level: number;
+  passed: boolean;
+  nextLevel: number;
   onHome: () => void;
+  onNextLevel: () => void;
+  onTryAgain: () => void;
 };
 
-export function QuizResultsScreen({score, total, onHome}: QuizResultsScreenProps): React.JSX.Element {
+export function QuizResultsScreen({
+  score,
+  total,
+  level,
+  passed,
+  nextLevel,
+  onHome,
+  onNextLevel,
+  onTryAgain,
+}: QuizResultsScreenProps): React.JSX.Element {
   const [revealed, setRevealed] = useState(false);
-  const joke = jokes[(score + total) % jokes.length];
+  const joke = jokes[(score + total + level) % jokes.length];
+  const finalLevelPassed = passed && level >= quizLevelsCount;
 
   return (
     <Screen scroll>
-      <HeaderBar title="Quiz Complete!" emoji="🎉" />
-      <View style={styles.resultHero}>
-        <Text style={styles.resultEmoji}>🏅</Text>
+      <HeaderBar title={passed ? 'Level Passed' : 'Try Again'} emoji={passed ? '🏆' : '🔁'} />
+      <View style={[styles.resultHero, passed ? styles.resultHeroPassed : styles.resultHeroFailed]}>
+        <Text style={styles.resultEmoji}>{passed ? '✅' : '💡'}</Text>
         <Text style={styles.resultScore}>
           {score} / {total} Correct
         </Text>
-        <Text style={styles.resultText}>Keep practicing! The ghosts believe in you 🧙</Text>
+        <Text style={styles.resultText}>
+          {passed
+            ? finalLevelPassed
+              ? 'You cleared the full quiz path.'
+              : `Level ${nextLevel} is unlocked.`
+            : 'Score 4 or 5 correct answers to pass this level.'}
+        </Text>
       </View>
       <View style={styles.jokeCard}>
-        <Text style={styles.jokeLabel}>🔒 YOUR REWARD JOKE</Text>
-        <Text style={styles.jokeEmoji}>🍩</Text>
+        <Text style={styles.jokeLabel}>{passed ? 'REWARD JOKE' : 'PRACTICE JOKE'}</Text>
+        <Text style={styles.jokeEmoji}>😂</Text>
         <Text style={styles.jokeSetup}>{joke.setup}</Text>
         {revealed ? (
           <View style={styles.punchline}>
             <Text style={styles.punchlineText}>{joke.punchline}</Text>
           </View>
         ) : (
-          <AppButton label="Reveal Punchline! 😂" onPress={() => setRevealed(true)} tone="orange" style={styles.revealButton} />
+          <AppButton label="Reveal Punchline" onPress={() => setRevealed(true)} tone="orange" style={styles.revealButton} />
         )}
       </View>
-      <AppButton label="Home" onPress={onHome} />
+      <View style={styles.resultButtons}>
+        {passed ? (
+          <AppButton label={finalLevelPassed ? 'Replay Final Level' : `Next Level ${nextLevel}`} onPress={onNextLevel} />
+        ) : (
+          <AppButton label="Try Again" onPress={onTryAgain} tone="orange" />
+        )}
+        <AppButton label="Quiz Home" onPress={onHome} tone="dark" />
+      </View>
     </Screen>
   );
+}
+
+function getLevelQuestions(level: number): QuizQuestion[] {
+  return quizLevels[level - 1] ?? quizLevels[0];
+}
+
+function clampLevel(level: number): number {
+  return Math.min(quizLevelsCount, Math.max(1, Math.floor(level || 1)));
 }
 
 const styles = StyleSheet.create({
@@ -248,12 +301,27 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 2,
     backgroundColor: colors.surfaceStrong,
-    marginBottom: 28,
+    marginBottom: 14,
   },
   progressFill: {
     height: 3,
     borderRadius: 2,
     backgroundColor: colors.purpleSoft,
+  },
+  scoreLine: {
+    minHeight: 42,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    marginBottom: 14,
+  },
+  scoreLineText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '900',
   },
   questionCard: {
     minHeight: 178,
@@ -348,10 +416,15 @@ const styles = StyleSheet.create({
   },
   resultHero: {
     borderRadius: 16,
-    backgroundColor: colors.purpleDeep,
     alignItems: 'center',
     padding: 28,
     marginTop: 18,
+  },
+  resultHeroPassed: {
+    backgroundColor: colors.purpleDeep,
+  },
+  resultHeroFailed: {
+    backgroundColor: colors.orangeDeep,
   },
   resultEmoji: {
     fontSize: 42,
@@ -365,6 +438,7 @@ const styles = StyleSheet.create({
   resultText: {
     color: colors.textMuted,
     fontSize: 13,
+    lineHeight: 19,
     textAlign: 'center',
     marginTop: 8,
   },
@@ -415,5 +489,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
     fontWeight: '800',
+  },
+  resultButtons: {
+    gap: 10,
   },
 });

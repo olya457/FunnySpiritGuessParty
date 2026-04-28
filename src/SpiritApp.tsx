@@ -4,8 +4,9 @@ import {BottomNav} from './components/BottomNav';
 import {stories} from './data/content';
 import {loadStoredState, saveStoredState} from './services/storage';
 import {colors} from './styles/theme';
-import {Route, StoredState, TabKey} from './types';
-import {GhostHomeScreen, GhostPlayScreen, GhostResultsScreen} from './screens/GhostScreens';
+import {PartyResultRole, Route, StoredState, TabKey} from './types';
+import {GamesHubScreen} from './screens/GamesScreen';
+import {GhostPlayScreen, GhostResultsScreen} from './screens/GhostScreens';
 import {LoadingScreen} from './screens/LoadingScreen';
 import {OnboardingScreen} from './screens/OnboardingScreen';
 import {
@@ -17,6 +18,7 @@ import {
 } from './screens/PartyScreens';
 import {PairsGameScreen} from './screens/PairsGameScreen';
 import {QuizHomeScreen, QuizPlayScreen, QuizResultsScreen} from './screens/QuizScreens';
+import {StatsScreen} from './screens/StatsScreen';
 import {StoriesScreen} from './screens/StoriesScreen';
 import {StoryDetailScreen} from './screens/StoryDetailScreen';
 
@@ -24,6 +26,7 @@ const defaultState: StoredState = {
   onboardingDone: false,
   likedStoryIds: [],
   quizBestScore: 0,
+  quizLevel: 1,
   ghostBestScore: 0,
   partyBestScore: 0,
   pairsBestScore: 0,
@@ -95,15 +98,21 @@ export function SpiritApp(): React.JSX.Element {
     setRoute({name: 'main'});
   }, []);
 
-  const finishParty = useCallback((scores: number[]) => {
+  const finishParty = useCallback((scores: number[], cast: PartyResultRole[]) => {
     const best = Math.max(...scores);
     setStored(current => ({...current, partyBestScore: Math.max(current.partyBestScore, best)}));
-    setRoute({name: 'partyResults', scores});
+    setRoute({name: 'partyResults', scores, cast});
   }, []);
 
-  const finishQuiz = useCallback((score: number, total: number) => {
-    setStored(current => ({...current, quizBestScore: Math.max(current.quizBestScore, score)}));
-    setRoute({name: 'quizResults', score, total});
+  const finishQuiz = useCallback((score: number, total: number, level: number) => {
+    const passed = score >= 4;
+    const nextLevel = passed ? Math.min(30, level + 1) : level;
+    setStored(current => ({
+      ...current,
+      quizBestScore: Math.max(current.quizBestScore, score),
+      quizLevel: passed ? Math.max(current.quizLevel, nextLevel) : current.quizLevel,
+    }));
+    setRoute({name: 'quizResults', score, total, level, passed, nextLevel});
   }, []);
 
   const finishGhost = useCallback((score: number, rounds: number, bestCombo: number) => {
@@ -113,6 +122,18 @@ export function SpiritApp(): React.JSX.Element {
 
   const finishPairs = useCallback((score: number) => {
     setStored(current => ({...current, pairsBestScore: Math.max(current.pairsBestScore, score)}));
+  }, []);
+
+  const clearStats = useCallback(() => {
+    setStored(current => ({
+      ...current,
+      likedStoryIds: [],
+      quizBestScore: 0,
+      quizLevel: 1,
+      ghostBestScore: 0,
+      partyBestScore: 0,
+      pairsBestScore: 0,
+    }));
   }, []);
 
   if (!loadingElapsed || !hydrated) {
@@ -140,12 +161,18 @@ export function SpiritApp(): React.JSX.Element {
   }
 
   if (route.name === 'partySetup') {
-    return <PartySetupScreen onBack={() => goMain('friends')} onStart={players => setRoute({name: 'partyRound', players})} />;
+    return (
+      <PartySetupScreen
+        onBack={() => goMain('friends')}
+        onStart={(players, acts) => setRoute({name: 'partyRound', players, acts})}
+      />
+    );
   }
 
   if (route.name === 'partyRound') {
     return (
       <PartyRoundScreen
+        acts={route.acts}
         players={route.players}
         onBackHome={() => goMain('friends')}
         onTeach={() => setRoute({name: 'partyHowTo'})}
@@ -157,6 +184,7 @@ export function SpiritApp(): React.JSX.Element {
   if (route.name === 'partyResults') {
     return (
       <PartyResultsScreen
+        cast={route.cast}
         scores={route.scores}
         onHome={() => goMain('friends')}
         onPlayAgain={() => setRoute({name: 'partySetup'})}
@@ -165,15 +193,26 @@ export function SpiritApp(): React.JSX.Element {
   }
 
   if (route.name === 'quizPlay') {
-    return <QuizPlayScreen onBack={() => goMain('quiz')} onFinish={finishQuiz} />;
+    return <QuizPlayScreen level={route.level} onBack={() => goMain('quiz')} onFinish={finishQuiz} />;
   }
 
   if (route.name === 'quizResults') {
-    return <QuizResultsScreen score={route.score} total={route.total} onHome={() => goMain('quiz')} />;
+    return (
+      <QuizResultsScreen
+        score={route.score}
+        total={route.total}
+        level={route.level}
+        passed={route.passed}
+        nextLevel={route.nextLevel}
+        onHome={() => goMain('quiz')}
+        onNextLevel={() => setRoute({name: 'quizPlay', level: route.nextLevel})}
+        onTryAgain={() => setRoute({name: 'quizPlay', level: route.level})}
+      />
+    );
   }
 
   if (route.name === 'ghostPlay') {
-    return <GhostPlayScreen onHome={() => goMain('ghost')} onFinish={finishGhost} />;
+    return <GhostPlayScreen onHome={() => goMain('games')} onFinish={finishGhost} />;
   }
 
   if (route.name === 'ghostResults') {
@@ -182,8 +221,19 @@ export function SpiritApp(): React.JSX.Element {
         score={route.score}
         rounds={route.rounds}
         bestCombo={route.bestCombo}
-        onHome={() => goMain('ghost')}
+        onHome={() => goMain('games')}
         onPlayAgain={() => setRoute({name: 'ghostPlay'})}
+      />
+    );
+  }
+
+  if (route.name === 'pairsPlay') {
+    return (
+      <PairsGameScreen
+        bestScore={stored.pairsBestScore}
+        onBestScore={finishPairs}
+        onHome={() => goMain('games')}
+        startImmediately
       />
     );
   }
@@ -205,13 +255,22 @@ export function SpiritApp(): React.JSX.Element {
         />
       ) : null}
       {activeTab === 'quiz' ? (
-        <QuizHomeScreen bestScore={stored.quizBestScore} onStart={() => setRoute({name: 'quizPlay'})} />
+        <QuizHomeScreen
+          bestScore={stored.quizBestScore}
+          currentLevel={stored.quizLevel}
+          onStart={() => setRoute({name: 'quizPlay', level: stored.quizLevel})}
+        />
       ) : null}
-      {activeTab === 'ghost' ? (
-        <GhostHomeScreen bestScore={stored.ghostBestScore} onStart={() => setRoute({name: 'ghostPlay'})} />
+      {activeTab === 'games' ? (
+        <GamesHubScreen
+          ghostBestScore={stored.ghostBestScore}
+          pairsBestScore={stored.pairsBestScore}
+          onStartGhost={() => setRoute({name: 'ghostPlay'})}
+          onStartPairs={() => setRoute({name: 'pairsPlay'})}
+        />
       ) : null}
-      {activeTab === 'pairs' ? (
-        <PairsGameScreen bestScore={stored.pairsBestScore} onBestScore={finishPairs} />
+      {activeTab === 'stats' ? (
+        <StatsScreen state={stored} onClearStats={clearStats} />
       ) : null}
       <BottomNav
         activeTab={activeTab}
@@ -229,6 +288,7 @@ function mergeState(saved: Partial<StoredState>): StoredState {
     onboardingDone: saved.onboardingDone ?? defaultState.onboardingDone,
     likedStoryIds: Array.isArray(saved.likedStoryIds) ? saved.likedStoryIds : [],
     quizBestScore: typeof saved.quizBestScore === 'number' ? saved.quizBestScore : 0,
+    quizLevel: typeof saved.quizLevel === 'number' ? Math.min(30, Math.max(1, saved.quizLevel)) : 1,
     ghostBestScore: typeof saved.ghostBestScore === 'number' ? saved.ghostBestScore : 0,
     partyBestScore: typeof saved.partyBestScore === 'number' ? saved.partyBestScore : 0,
     pairsBestScore: typeof saved.pairsBestScore === 'number' ? saved.pairsBestScore : 0,

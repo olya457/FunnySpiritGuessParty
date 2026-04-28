@@ -9,6 +9,8 @@ import {colors} from '../styles/theme';
 type PairsGameScreenProps = {
   bestScore: number;
   onBestScore: (score: number) => void;
+  onHome?: () => void;
+  startImmediately?: boolean;
 };
 
 type Phase = 'intro' | 'play' | 'result';
@@ -29,12 +31,17 @@ type ResultState = {
   newBest: boolean;
 };
 
-const pairEmojis = ['👻', '💀', '🧛', '🧟', '🎃', '🕯️', '🧙', '🦇'];
+const pairEmojis = ['👻', '💀', '🧛', '🧟', '🧙', '🦇', '🎩', '🕵️'];
 
-export function PairsGameScreen({bestScore, onBestScore}: PairsGameScreenProps): React.JSX.Element {
+export function PairsGameScreen({
+  bestScore,
+  onBestScore,
+  onHome,
+  startImmediately,
+}: PairsGameScreenProps): React.JSX.Element {
   const {width} = useWindowDimensions();
   const cardSize = Math.max(58, Math.min(78, (width - 70) / 4));
-  const [phase, setPhase] = useState<Phase>('intro');
+  const [phase, setPhase] = useState<Phase>(startImmediately ? 'play' : 'intro');
   const [cards, setCards] = useState<PairCard[]>(() => createDeck());
   const [openIds, setOpenIds] = useState<string[]>([]);
   const [moves, setMoves] = useState(0);
@@ -148,8 +155,8 @@ export function PairsGameScreen({bestScore, onBestScore}: PairsGameScreenProps):
 
   if (phase === 'intro') {
     return (
-      <Screen scroll withNav>
-        <HeaderBar title="Spirit Pairs" subtitle="Find matching spirits" emoji="🃏" />
+      <Screen scroll withNav={!onHome}>
+        <HeaderBar title="Spirit Pairs" subtitle="Find matching spirits" emoji="🃏" onBack={onHome} />
         <View style={styles.heroCard}>
           <Text style={styles.heroEmoji}>👻</Text>
           <Text style={styles.heroTitle}>Find the Pairs</Text>
@@ -172,8 +179,8 @@ export function PairsGameScreen({bestScore, onBestScore}: PairsGameScreenProps):
 
   if (phase === 'result' && result) {
     return (
-      <Screen scroll withNav>
-        <HeaderBar title="Pairs Complete!" subtitle="Your spirit memory report" emoji="🎉" />
+      <Screen scroll withNav={!onHome}>
+        <HeaderBar title="Pairs Complete!" subtitle="Your spirit memory report" emoji="🎉" onBack={onHome} />
         <View style={styles.resultHero}>
           <Text style={styles.resultStars}>{stars}</Text>
           <Text style={styles.resultScore}>{result.score}</Text>
@@ -191,15 +198,20 @@ export function PairsGameScreen({bestScore, onBestScore}: PairsGameScreenProps):
         </View>
         <View style={styles.actions}>
           <AppButton label="Play Again" onPress={startGame} style={styles.actionButton} />
-          <AppButton label="Start Page" onPress={() => setPhase('intro')} tone="dark" style={styles.actionButton} />
+          <AppButton
+            label={onHome ? 'Games' : 'Start Page'}
+            onPress={onHome ?? (() => setPhase('intro'))}
+            tone="dark"
+            style={styles.actionButton}
+          />
         </View>
       </Screen>
     );
   }
 
   return (
-    <Screen scroll withNav>
-      <HeaderBar title="Spirit Pairs" subtitle="Flip two cards at a time" emoji="🃏" />
+    <Screen scroll withNav={!onHome}>
+      <HeaderBar title="Spirit Pairs" subtitle="Flip two cards at a time" emoji="🃏" onBack={onHome} />
       <View style={styles.playStats}>
         <Text style={styles.playStat}>⏱️ {seconds}s</Text>
         <Text style={styles.playStat}>👆 {moves}</Text>
@@ -231,7 +243,12 @@ export function PairsGameScreen({bestScore, onBestScore}: PairsGameScreenProps):
       </View>
       <View style={styles.actions}>
         <AppButton label="Restart" onPress={startGame} tone="dark" style={styles.actionButton} />
-        <AppButton label="Start Page" onPress={() => setPhase('intro')} tone="orange" style={styles.actionButton} />
+        <AppButton
+          label={onHome ? 'Games' : 'Start Page'}
+          onPress={onHome ?? (() => setPhase('intro'))}
+          tone="orange"
+          style={styles.actionButton}
+        />
       </View>
     </Screen>
   );
