@@ -1,4 +1,4 @@
-package com.funny.spirit.guess.party
+package com.funnymysterystories
 
 import android.app.Application
 import com.facebook.react.PackageList

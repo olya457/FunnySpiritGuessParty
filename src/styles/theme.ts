@@ -1,10 +1,10 @@
 import {Platform} from 'react-native';
 
 export const colors = {
-  background: '#090617',
-  backgroundSoft: '#120d27',
-  surface: '#171031',
-  surfaceStrong: '#21134b',
+  background: 'rgba(96, 31, 149, 1)',
+  backgroundSoft: '#563275ff',
+  surface: '#3b124fff',
+  surfaceStrong: '#5633bdff',
   border: '#35205f',
   borderSoft: '#261945',
   text: '#f6efff',
